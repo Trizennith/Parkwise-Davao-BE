@@ -126,12 +126,15 @@ class ReportViewSet(viewsets.ViewSet):
             reservations=Count('id')
         ).order_by('date')
         
-        # Get revenue data
-        revenue_data = reservations.annotate(
-            date=TruncDate('start_time')
-        ).values('date').annotate(
-            revenue=Sum('total_cost')
-        ).order_by('date')
+        # Get revenue data by date
+        revenue_data = []
+        for date in daily_data:
+            date_reservations = reservations.filter(start_time__date=date['date'])
+            revenue = sum(r.total_cost for r in date_reservations)
+            revenue_data.append({
+                'date': date['date'],
+                'revenue': revenue
+            })
         
         data = {
             'start_date': start_date,
@@ -316,4 +319,26 @@ class ReportViewSet(viewsets.ViewSet):
         )
         
         serializer = ParkingLotReportSerializer(report)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def daily(self, request):
+        """Get daily report for a specific date."""
+        date_str = request.query_params.get('date')
+        
+        if not date_str:
+            # If no date provided, use today's date
+            date = timezone.now().date()
+        else:
+            try:
+                date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return Response(
+                    {'detail': 'Invalid date format. Use YYYY-MM-DD.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Get or create daily report
+        report = DailyReport.generate_report(date=date)
+        serializer = DailyReportSerializer(report)
         return Response(serializer.data) 

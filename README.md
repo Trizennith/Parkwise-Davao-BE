@@ -327,6 +327,44 @@ GET /admin-api/reservations
 Authorization: Bearer your.jwt.token
 ```
 
+Response:
+```json
+{
+    "count": 2,
+    "next": null,
+    "previous": null,
+    "results": [
+        {
+            "id": 1,
+            "user": {
+                "id": 1,
+                "email": "user@example.com",
+                "username": "user",
+                "first_name": "John",
+                "last_name": "Doe"
+            },
+            "parking_lot": {
+                "id": 1,
+                "name": "SM City Davao",
+                "address": "Quimpo Blvd, Davao City"
+            },
+            "parking_space": {
+                "id": 1,
+                "space_number": "A-001",
+                "type": "standard"
+            },
+            "start_time": "2024-03-20T10:00:00Z",
+            "end_time": "2024-03-20T12:00:00Z",
+            "status": "active",
+            "vehicle_plate": "ABC123",
+            "notes": "Regular parking",
+            "created_at": "2024-03-20T09:00:00Z",
+            "updated_at": "2024-03-20T09:00:00Z"
+        }
+    ]
+}
+```
+
 ##### Update Reservation Status
 ```http
 PATCH /admin-api/reservations/{id}/status
@@ -338,12 +376,81 @@ Content-Type: application/json
 }
 ```
 
+Response:
+```json
+{
+    "id": 1,
+    "user": {
+        "id": 1,
+        "email": "user@example.com",
+        "username": "user",
+        "first_name": "John",
+        "last_name": "Doe"
+    },
+    "parking_lot": {
+        "id": 1,
+        "name": "SM City Davao",
+        "address": "Quimpo Blvd, Davao City"
+    },
+    "parking_space": {
+        "id": 1,
+        "space_number": "A-001",
+        "type": "standard"
+    },
+    "start_time": "2024-03-20T10:00:00Z",
+    "end_time": "2024-03-20T12:00:00Z",
+    "status": "completed",
+    "vehicle_plate": "ABC123",
+    "notes": "Regular parking",
+    "created_at": "2024-03-20T09:00:00Z",
+    "updated_at": "2024-03-20T12:00:00Z"
+}
+```
+
 #### Payment Management
 
 ##### List All Payments
 ```http
 GET /admin-api/payments
 Authorization: Bearer your.jwt.token
+```
+
+Response:
+```json
+{
+    "count": 2,
+    "next": null,
+    "previous": null,
+    "results": [
+        {
+            "id": 1,
+            "reservation": {
+                "id": 1,
+                "user": {
+                    "id": 1,
+                    "email": "user@example.com",
+                    "username": "user"
+                },
+                "parking_lot": {
+                    "id": 1,
+                    "name": "SM City Davao"
+                },
+                "parking_space": {
+                    "id": 1,
+                    "space_number": "A-001"
+                },
+                "start_time": "2024-03-20T10:00:00Z",
+                "end_time": "2024-03-20T12:00:00Z"
+            },
+            "amount": 100.00,
+            "payment_method": "credit_card",
+            "status": "paid",
+            "transaction_id": "txn_123456789",
+            "created_at": "2024-03-20T09:30:00Z",
+            "updated_at": "2024-03-20T09:30:00Z"
+        }
+    ]
+}
 ```
 
 ##### Update Payment Status
@@ -357,6 +464,37 @@ Content-Type: application/json
 }
 ```
 
+Response:
+```json
+{
+    "id": 1,
+    "reservation": {
+        "id": 1,
+        "user": {
+            "id": 1,
+            "email": "user@example.com",
+            "username": "user"
+        },
+        "parking_lot": {
+            "id": 1,
+            "name": "SM City Davao"
+        },
+        "parking_space": {
+            "id": 1,
+            "space_number": "A-001"
+        },
+        "start_time": "2024-03-20T10:00:00Z",
+        "end_time": "2024-03-20T12:00:00Z"
+    },
+    "amount": 100.00,
+    "payment_method": "credit_card",
+    "status": "paid",
+    "transaction_id": "txn_123456789",
+    "created_at": "2024-03-20T09:30:00Z",
+    "updated_at": "2024-03-20T09:35:00Z"
+}
+```
+
 #### Reports
 
 ##### Get Daily Summary
@@ -365,10 +503,36 @@ GET /admin-api/reports/summary
 Authorization: Bearer your.jwt.token
 ```
 
+Response:
+```json
+{
+    "total_revenue": 15000.00,
+    "total_reservations": 50,
+    "total_parking_spaces": 200,
+    "available_spaces": 150,
+    "occupied_spaces": 50,
+    "date": "2024-03-20"
+}
+```
+
 ##### Get Monthly Report
 ```http
 GET /admin-api/reports/monthly
 Authorization: Bearer your.jwt.token
+```
+
+Response:
+```json
+{
+    "month": 3,
+    "year": 2024,
+    "total_revenue": 450000.00,
+    "total_reservations": 1500,
+    "average_daily_revenue": 15000.00,
+    "average_daily_reservations": 50,
+    "peak_usage_day": "2024-03-15",
+    "peak_usage_count": 75
+}
 ```
 
 ##### Get Date Range Report
@@ -377,10 +541,59 @@ GET /admin-api/reports/date-range?start_date=2024-03-01&end_date=2024-03-31
 Authorization: Bearer your.jwt.token
 ```
 
+Response:
+```json
+{
+    "start_date": "2024-03-01",
+    "end_date": "2024-03-31",
+    "total_revenue": 450000.00,
+    "total_reservations": 1500,
+    "daily_averages": {
+        "revenue": 15000.00,
+        "reservations": 50
+    },
+    "parking_lot_breakdown": [
+        {
+            "parking_lot_id": 1,
+            "name": "SM City Davao",
+            "total_revenue": 225000.00,
+            "total_reservations": 750
+        }
+    ]
+}
+```
+
 ##### Get Parking Lot Report
 ```http
 GET /admin-api/reports/parking-lot/{id}
 Authorization: Bearer your.jwt.token
+```
+
+Response:
+```json
+{
+    "parking_lot": {
+        "id": 1,
+        "name": "SM City Davao",
+        "address": "Quimpo Blvd, Davao City"
+    },
+    "total_revenue": 225000.00,
+    "total_reservations": 750,
+    "space_utilization": {
+        "total_spaces": 200,
+        "average_occupancy_rate": 75.5,
+        "peak_occupancy_rate": 90.0,
+        "peak_occupancy_date": "2024-03-15"
+    },
+    "monthly_breakdown": [
+        {
+            "month": 3,
+            "year": 2024,
+            "revenue": 225000.00,
+            "reservations": 750
+        }
+    ]
+}
 ```
 
 ##### Export Report
@@ -389,12 +602,54 @@ GET /admin-api/reports/export?type=daily&start_date=2024-03-01&end_date=2024-03-
 Authorization: Bearer your.jwt.token
 ```
 
+Response:
+```
+Content-Type: text/csv
+Content-Disposition: attachment; filename="daily_report_2024-03.csv"
+
+Date,Total Revenue,Total Reservations,Available Spaces,Occupied Spaces
+2024-03-01,15000.00,50,150,50
+2024-03-02,16000.00,55,145,55
+...
+```
+
 ### User Reservation Endpoints
 
 #### List My Reservations
 ```http
 GET /user/reservations
 Authorization: Bearer your.jwt.token
+```
+
+Response:
+```json
+{
+    "count": 2,
+    "next": null,
+    "previous": null,
+    "results": [
+        {
+            "id": 1,
+            "parking_lot": {
+                "id": 1,
+                "name": "SM City Davao",
+                "address": "Quimpo Blvd, Davao City"
+            },
+            "parking_space": {
+                "id": 1,
+                "space_number": "A-001",
+                "type": "standard"
+            },
+            "start_time": "2024-03-20T10:00:00Z",
+            "end_time": "2024-03-20T12:00:00Z",
+            "status": "active",
+            "vehicle_plate": "ABC123",
+            "notes": "Regular parking",
+            "created_at": "2024-03-20T09:00:00Z",
+            "updated_at": "2024-03-20T09:00:00Z"
+        }
+    ]
+}
 ```
 
 #### Create Reservation
@@ -413,10 +668,58 @@ Content-Type: application/json
 }
 ```
 
+Response:
+```json
+{
+    "id": 1,
+    "parking_lot": {
+        "id": 1,
+        "name": "SM City Davao",
+        "address": "Quimpo Blvd, Davao City"
+    },
+    "parking_space": {
+        "id": 1,
+        "space_number": "A-001",
+        "type": "standard"
+    },
+    "start_time": "2024-03-20T10:00:00Z",
+    "end_time": "2024-03-20T12:00:00Z",
+    "status": "active",
+    "vehicle_plate": "ABC123",
+    "notes": "Regular parking",
+    "created_at": "2024-03-20T09:00:00Z",
+    "updated_at": "2024-03-20T09:00:00Z"
+}
+```
+
 #### Cancel Reservation
 ```http
 POST /user/reservations/{id}/cancel
 Authorization: Bearer your.jwt.token
+```
+
+Response:
+```json
+{
+    "id": 1,
+    "parking_lot": {
+        "id": 1,
+        "name": "SM City Davao",
+        "address": "Quimpo Blvd, Davao City"
+    },
+    "parking_space": {
+        "id": 1,
+        "space_number": "A-001",
+        "type": "standard"
+    },
+    "start_time": "2024-03-20T10:00:00Z",
+    "end_time": "2024-03-20T12:00:00Z",
+    "status": "cancelled",
+    "vehicle_plate": "ABC123",
+    "notes": "Regular parking",
+    "created_at": "2024-03-20T09:00:00Z",
+    "updated_at": "2024-03-20T09:05:00Z"
+}
 ```
 
 ## Error Responses
@@ -713,4 +1016,247 @@ This will create:
 
 Interactive API documentation is available at:
 - Swagger UI: `/swagger/`
-- ReDoc: `/redoc/` 
+- ReDoc: `/redoc/`
+
+### Parking Space Management
+
+#### List Parking Spaces
+```http
+GET /admin-api/parking-lots/{id}/spaces
+Authorization: Bearer your.jwt.token
+```
+
+Response:
+```json
+{
+    "count": 2,
+    "next": null,
+    "previous": null,
+    "results": [
+        {
+            "id": 1,
+            "space_number": "A-001",
+            "status": "available",
+            "type": "standard",
+            "is_reserved": false,
+            "parking_lot": 1,
+            "created_at": "2024-03-20T10:00:00Z",
+            "updated_at": "2024-03-20T10:00:00Z"
+        }
+    ]
+}
+```
+
+#### Create Parking Space
+```http
+POST /admin-api/parking-lots/{id}/spaces
+Authorization: Bearer your.jwt.token
+Content-Type: application/json
+
+{
+    "space_number": "A-002",
+    "type": "standard",
+    "status": "available"
+}
+```
+
+Response:
+```json
+{
+    "id": 2,
+    "space_number": "A-002",
+    "status": "available",
+    "type": "standard",
+    "is_reserved": false,
+    "parking_lot": 1,
+    "created_at": "2024-03-20T10:00:00Z",
+    "updated_at": "2024-03-20T10:00:00Z"
+}
+```
+
+#### Update Parking Space
+```http
+PATCH /admin-api/parking-lots/{id}/spaces/{space_id}
+Authorization: Bearer your.jwt.token
+Content-Type: application/json
+
+{
+    "status": "maintenance",
+    "type": "handicapped"
+}
+```
+
+Response:
+```json
+{
+    "id": 1,
+    "space_number": "A-001",
+    "status": "maintenance",
+    "type": "handicapped",
+    "is_reserved": false,
+    "parking_lot": 1,
+    "created_at": "2024-03-20T10:00:00Z",
+    "updated_at": "2024-03-20T10:00:00Z"
+}
+```
+
+#### Delete Parking Space
+```http
+DELETE /admin-api/parking-lots/{id}/spaces/{space_id}
+Authorization: Bearer your.jwt.token
+```
+
+Response:
+```json
+{
+    "detail": "Parking space successfully deleted."
+}
+```
+
+### Reports
+
+#### Get Daily Summary
+```http
+GET /reports/summary
+Authorization: Bearer your.jwt.token
+```
+
+Response:
+```json
+{
+    "total_revenue": 15000.00,
+    "total_reservations": 50,
+    "total_parking_spaces": 200,
+    "available_spaces": 150,
+    "occupied_spaces": 50,
+    "date": "2024-03-20"
+}
+```
+
+#### Get Monthly Report
+```http
+GET /reports/monthly?month=3&year=2024
+Authorization: Bearer your.jwt.token
+```
+
+Response:
+```json
+{
+    "month": 3,
+    "year": 2024,
+    "total_revenue": 450000.00,
+    "total_reservations": 1500,
+    "average_daily_revenue": 15000.00,
+    "average_daily_reservations": 50,
+    "peak_usage_day": "2024-03-15",
+    "peak_usage_count": 75
+}
+```
+
+#### Get Daily Report
+```http
+GET /reports/daily?date=2024-03-20
+Authorization: Bearer your.jwt.token
+```
+
+Response:
+```json
+{
+    "date": "2024-03-20",
+    "total_revenue": 15000.00,
+    "total_reservations": 50,
+    "hourly_breakdown": [
+        {
+            "hour": 9,
+            "reservations": 10,
+            "revenue": 3000.00
+        }
+    ],
+    "parking_lot_breakdown": [
+        {
+            "parking_lot_id": 1,
+            "name": "SM City Davao",
+            "reservations": 25,
+            "revenue": 7500.00
+        }
+    ]
+}
+```
+
+#### Get Date Range Report
+```http
+GET /reports/date-range?start_date=2024-03-01&end_date=2024-03-31
+Authorization: Bearer your.jwt.token
+```
+
+Response:
+```json
+{
+    "start_date": "2024-03-01",
+    "end_date": "2024-03-31",
+    "total_revenue": 450000.00,
+    "total_reservations": 1500,
+    "daily_averages": {
+        "revenue": 15000.00,
+        "reservations": 50
+    },
+    "parking_lot_breakdown": [
+        {
+            "parking_lot_id": 1,
+            "name": "SM City Davao",
+            "total_revenue": 225000.00,
+            "total_reservations": 750
+        }
+    ]
+}
+```
+
+#### Get Parking Lot Report
+```http
+GET /reports/parking-lot/1
+Authorization: Bearer your.jwt.token
+```
+
+Response:
+```json
+{
+    "parking_lot": {
+        "id": 1,
+        "name": "SM City Davao",
+        "address": "Quimpo Blvd, Davao City"
+    },
+    "total_revenue": 225000.00,
+    "total_reservations": 750,
+    "space_utilization": {
+        "total_spaces": 200,
+        "average_occupancy_rate": 75.5,
+        "peak_occupancy_rate": 90.0,
+        "peak_occupancy_date": "2024-03-15"
+    },
+    "monthly_breakdown": [
+        {
+            "month": 3,
+            "year": 2024,
+            "revenue": 225000.00,
+            "reservations": 750
+        }
+    ]
+}
+```
+
+#### Export Report
+```http
+GET /reports/export?type=daily&start_date=2024-03-01&end_date=2024-03-31
+Authorization: Bearer your.jwt.token
+```
+
+Response:
+```
+Content-Type: text/csv
+Content-Disposition: attachment; filename="daily_report_2024-03.csv"
+
+Date,Total Revenue,Total Reservations,Available Spaces,Occupied Spaces
+2024-03-01,15000.00,50,150,50
+2024-03-02,16000.00,55,145,55
+...
+``` 
