@@ -78,6 +78,9 @@ app.local.db.build:
 app.local.db.down:
 	@docker compose -f ./docker/app.local.db.yml down
 
+run:
+	@python manage.py runserver
+
 check.docker.compose-stack:
 ifndef $(DOCKER_COMPOSE_LOCAL_NAME)
 	$(error DOCKER_COMPOSE_LOCAL_NAME is undefined. Use: make "<command>" DOCKER_COMPOSE_LOCAL_NAME=<DOCKER_COMPOSE_LOCAL_NAME>)
