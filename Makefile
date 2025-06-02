@@ -1,4 +1,4 @@
-.PHONY: help install run test migrate makemigrations shell clean docker-build docker-run docker-stop docker-logs app.local.build
+.PHONY: help install run test migrate makemigrations shell clean docker-build docker-run docker-stop docker-logs app.local.build 
 
 ifneq (,$(wildcard .env.local))
     include .env.local
@@ -78,8 +78,16 @@ app.local.db.build:
 app.local.db.down:
 	@docker compose -f ./docker/app.local.db.yml down
 
+run.local:
+	@echo "Starting the local development environment..."
+	@docker compose -f ./docker/app.local.db.yml up -d
+	@. ./venv/bin/activate && python manage.py runserver
+
 run:
-	@python manage.py runserver
+	@. ./venv/bin/activate && python manage.py runserver
+
+
+
 
 check.docker.compose-stack:
 ifndef $(DOCKER_COMPOSE_LOCAL_NAME)

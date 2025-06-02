@@ -7,12 +7,32 @@ User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for user data."""
+    def create(self, validated_data):
+        user = User(**validated_data)
+        user.set_password(validated_data['password'])  # Use the default password hasher
+        user.save()
+        return user
+
+    def update(self, instance, validated_data):
+        if 'role' in validated_data:
+            if validated_data['role'] == 'admin':
+                instance.is_staff = True
+            else:
+                instance.is_staff = False
+        if 'password' in validated_data:
+            instance.set_password(validated_data['password'])  # Hash the password
+            validated_data.pop('password')
+        return super().update(instance, validated_data)
     
     class Meta:
         model = User
-        fields = ('id', 'email', 'username', 'first_name', 'last_name', 
+        fields = ('id', 'email', 'username', 'password', 'first_name', 'last_name', 
                  'role', 'status', 'avatar_url', 'created_at', 'updated_at')
         read_only_fields = ('id', 'created_at', 'updated_at')
+        extra_kwargs = {
+            'password': {'write_only': True},
+            'is_staff': {'write_only': True}
+        }
 
 class UserCreateSerializer(serializers.ModelSerializer):
     """Serializer for user registration."""
