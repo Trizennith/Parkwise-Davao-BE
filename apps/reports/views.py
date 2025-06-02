@@ -4,13 +4,16 @@ from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Count, Sum, Avg
 from django.db.models.functions import TruncDate, TruncHour
-from datetime import timedelta
-from .models import DailyReport, ParkingLotReport
+from datetime import timedelta, datetime
+import csv
+from django.http import HttpResponse
+from .models import DailyReport, ParkingLotReport, MonthlyReport
 from .serializers import (
     DailyReportSerializer, ParkingLotReportSerializer,
     ReportSummarySerializer, DailyReservationsSerializer,
     RevenueSerializer, PeakHoursSerializer,
-    UserDemographicsSerializer
+    UserDemographicsSerializer, MonthlyReportSerializer,
+    DateRangeReportSerializer
 )
 from apps.reservations.models import Reservation
 from apps.parking_lots.models import ParkingLot
@@ -66,6 +69,161 @@ class ReportViewSet(viewsets.ViewSet):
         
         serializer = ReportSummarySerializer(data)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def monthly(self, request):
+        """Get monthly report for the current month."""
+        today = timezone.now()
+        year = today.year
+        month = today.month
+        
+        report = MonthlyReport.generate_report(year=year, month=month)
+        serializer = MonthlyReportSerializer(report)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def date_range(self, request):
+        """Get report for a custom date range."""
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        if not start_date or not end_date:
+            return Response(
+                {'detail': 'Both start_date and end_date are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {'detail': 'Invalid date format. Use YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get reservations for the date range
+        reservations = Reservation.objects.filter(
+            start_time__date__range=[start_date, end_date],
+            status__in=['active', 'completed']
+        )
+        
+        # Calculate summary statistics
+        total_revenue = sum(r.total_cost for r in reservations)
+        total_reservations = reservations.count()
+        average_duration = sum(r.duration for r in reservations) / total_reservations if total_reservations > 0 else 0
+        
+        # Calculate average occupancy rate
+        daily_reports = DailyReport.objects.filter(
+            date__range=[start_date, end_date]
+        )
+        average_occupancy_rate = sum(report.occupancy_rate for report in daily_reports) / len(daily_reports) if daily_reports else 0
+        
+        # Get daily data
+        daily_data = reservations.annotate(
+            date=TruncDate('start_time')
+        ).values('date').annotate(
+            reservations=Count('id')
+        ).order_by('date')
+        
+        # Get revenue data
+        revenue_data = reservations.annotate(
+            date=TruncDate('start_time')
+        ).values('date').annotate(
+            revenue=Sum('total_cost')
+        ).order_by('date')
+        
+        data = {
+            'start_date': start_date,
+            'end_date': end_date,
+            'total_revenue': total_revenue,
+            'total_reservations': total_reservations,
+            'average_duration': average_duration,
+            'average_occupancy_rate': average_occupancy_rate,
+            'daily_data': daily_data,
+            'revenue_data': revenue_data
+        }
+        
+        serializer = DateRangeReportSerializer(data)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def export(self, request):
+        """Export report data to CSV."""
+        report_type = request.query_params.get('type', 'daily')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        if not start_date or not end_date:
+            return Response(
+                {'detail': 'Both start_date and end_date are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {'detail': 'Invalid date format. Use YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{report_type}_report_{start_date}_{end_date}.csv"'
+        
+        writer = csv.writer(response)
+        
+        if report_type == 'daily':
+            reports = DailyReport.objects.filter(date__range=[start_date, end_date])
+            writer.writerow(['Date', 'Total Revenue', 'Total Reservations', 'Average Duration', 'Peak Hour', 'Occupancy Rate'])
+            for report in reports:
+                writer.writerow([
+                    report.date,
+                    report.total_revenue,
+                    report.total_reservations,
+                    report.average_duration,
+                    report.peak_hour,
+                    report.occupancy_rate
+                ])
+        elif report_type == 'monthly':
+            reports = MonthlyReport.objects.filter(
+                year__gte=start_date.year,
+                year__lte=end_date.year,
+                month__gte=start_date.month if start_date.year == end_date.year else 1,
+                month__lte=end_date.month if start_date.year == end_date.year else 12
+            )
+            writer.writerow(['Year', 'Month', 'Total Revenue', 'Total Reservations', 'Average Duration', 'Average Occupancy Rate', 'Peak Day'])
+            for report in reports:
+                writer.writerow([
+                    report.year,
+                    report.month,
+                    report.total_revenue,
+                    report.total_reservations,
+                    report.average_duration,
+                    report.average_occupancy_rate,
+                    report.peak_day
+                ])
+        elif report_type == 'parking_lot':
+            reports = ParkingLotReport.objects.filter(date__range=[start_date, end_date])
+            writer.writerow(['Parking Lot', 'Date', 'Total Revenue', 'Total Reservations', 'Occupancy Rate', 'Average Duration', 'Peak Hour'])
+            for report in reports:
+                writer.writerow([
+                    report.parking_lot.name,
+                    report.date,
+                    report.total_revenue,
+                    report.total_reservations,
+                    report.occupancy_rate,
+                    report.average_duration,
+                    report.peak_hour
+                ])
+        else:
+            return Response(
+                {'detail': 'Invalid report type. Use daily, monthly, or parking_lot.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        return response
     
     @action(detail=False, methods=['get'])
     def daily_reservations(self, request):

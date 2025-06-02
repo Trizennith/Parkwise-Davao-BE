@@ -16,12 +16,15 @@ class Command(BaseCommand):
         self.stdout.write('Seeding data...')
 
         # Create admin user
-        admin = User.objects.create_superuser(
+        admin = User.objects.create_user(
             email='admin@example.com',
             username='admin',
             password='admin123',
             first_name='Admin',
-            last_name='User'
+            last_name='User',
+            role='admin',
+            is_staff=True,
+            is_superuser=True
         )
         self.stdout.write(self.style.SUCCESS('Created admin user'))
 
@@ -33,7 +36,10 @@ class Command(BaseCommand):
                 username=f'user{i}',
                 password='user123',
                 first_name=f'User{i}',
-                last_name='Test'
+                last_name='Test',
+                role='user',
+                is_staff=False,
+                is_superuser=False
             )
             users.append(user)
         self.stdout.write(self.style.SUCCESS('Created regular users'))

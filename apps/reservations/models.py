@@ -2,6 +2,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
 from apps.parking_lots.models import ParkingLot, ParkingSpace
+from decimal import Decimal
 
 User = get_user_model()
 
@@ -54,8 +55,8 @@ class Reservation(models.Model):
         """Calculate the duration of the reservation in hours."""
         if self.end_time and self.start_time:
             duration = self.end_time - self.start_time
-            return duration.total_seconds() / 3600  # Convert to hours
-        return 0
+            return Decimal(str(duration.total_seconds() / 3600))  # Convert to hours and to Decimal
+        return Decimal('0')
     
     @property
     def total_cost(self):

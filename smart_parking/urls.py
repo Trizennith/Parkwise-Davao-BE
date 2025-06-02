@@ -23,20 +23,31 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     # Admin
-    path('admin/', admin.site.urls),
+    path('admin/', admin.site.urls),  # Django admin with trailing slash
     
     # API Documentation
-    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0)),
+    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0)),
     
     # Authentication
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/auth/', include('apps.jwt_blacklist.urls')),
+    path('api/auth/', include([
+        path('login/', TokenObtainPairView.as_view()),
+        path('refresh-token/', TokenRefreshView.as_view()),
+        path('', include('apps.jwt_blacklist.urls')),
+        path('', include('apps.accounts.urls')),
+    ])),
     
-    # Apps
-    path('api/accounts/', include('apps.accounts.urls')),
-    path('api/parking/', include('apps.parking_lots.urls')),
-    path('api/reservations/', include('apps.reservations.urls')),
-    path('api/reports/', include('apps.reports.urls')),
+    # User endpoints
+    path('api/user/', include([
+        path('', include('apps.reservations.urls')),
+        path('', include('apps.parking_lots.urls')),
+    ])),
+
+    # Admin API endpoints (changed from admin-api to api/admin)
+    path('api/admin/', include([
+        path('', include('apps.accounts.urls')),
+        path('', include('apps.parking_lots.urls')),
+        path('', include('apps.reservations.urls')),
+        path('', include('apps.reports.urls')),
+    ])),
 ] 

@@ -29,7 +29,7 @@ class UserViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
-        if self.request.user.profile.role == 'admin':
+        if self.request.user.role == User.Role.ADMIN:
             return User.objects.all()
         return User.objects.filter(id=self.request.user.id)
 
@@ -63,13 +63,13 @@ class ProfileViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
-        if self.request.user.profile.role == 'admin':
+        if self.request.user.role == User.Role.ADMIN:
             return Profile.objects.all()
         return Profile.objects.filter(user=self.request.user)
 
     @action(detail=False, methods=['get'])
     def my_profile(self, request):
-        profile = request.user.profile
+        profile, created = Profile.objects.get_or_create(user=request.user)
         serializer = self.get_serializer(profile)
         return Response(serializer.data)
 

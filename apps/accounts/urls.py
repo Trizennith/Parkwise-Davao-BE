@@ -1,18 +1,18 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from . import views
 
-app_name = 'accounts'
+router = DefaultRouter(trailing_slash=True)
+router.register(r'users', views.UserViewSet, basename='user')
 
-urlpatterns = [
-    # Authentication endpoints
-    path('register/', views.UserRegistrationView.as_view(), name='register'),
-    path('login/', views.UserLoginView.as_view(), name='login'),
-    
-    # Profile management
-    path('profile/', views.UserProfileView.as_view(), name='profile'),
-    path('change-password/', views.ChangePasswordView.as_view(), name='change-password'),
-    
-    # Admin endpoints
-    path('users/', views.UserListView.as_view(), name='user-list'),
-    path('users/<int:pk>/', views.UserDetailView.as_view(), name='user-detail'),
+urlpatterns = router.urls
+
+# Authentication endpoints
+urlpatterns += [
+    path('register/', views.UserRegistrationView.as_view()),
+    path('login/', views.UserLoginView.as_view()),
+    path('refresh-token/', views.UserLoginView.as_view()),  # Using UserLoginView for token refresh
+    path('change-password/', views.ChangePasswordView.as_view()),
+    path('profile/', views.UserProfileView.as_view()),
+    path('users/', views.UserListView.as_view()),
 ] 

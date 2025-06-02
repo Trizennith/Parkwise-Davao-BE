@@ -10,6 +10,15 @@ from .serializers import (
     ReservationUpdateSerializer
 )
 from rest_framework.decorators import action
+from django.db.models import Q
+from datetime import datetime
+from rest_framework.pagination import PageNumberPagination
+
+class StandardResultsSetPagination(PageNumberPagination):
+    """Custom pagination class for consistent page sizes."""
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 # Create your views here.
 
@@ -18,6 +27,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
     
     queryset = Reservation.objects.all()
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
     
     def get_serializer_class(self):
         if self.action == 'create':
@@ -43,6 +53,68 @@ class ReservationViewSet(viewsets.ModelViewSet):
         parking_lot = self.request.query_params.get('parking_lot')
         if parking_lot:
             queryset = queryset.filter(parking_lot=parking_lot)
+            
+        # Filter by parking space if provided
+        parking_space = self.request.query_params.get('parking_space')
+        if parking_space:
+            queryset = queryset.filter(parking_space=parking_space)
+            
+        # Filter by vehicle plate if provided
+        vehicle_plate = self.request.query_params.get('vehicle_plate')
+        if vehicle_plate:
+            queryset = queryset.filter(vehicle_plate__icontains=vehicle_plate)
+            
+        # Filter by date range if provided
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        
+        if start_date:
+            try:
+                start_date = datetime.strptime(start_date, '%Y-%m-%d')
+                queryset = queryset.filter(start_time__date__gte=start_date)
+            except ValueError:
+                pass
+                
+        if end_date:
+            try:
+                end_date = datetime.strptime(end_date, '%Y-%m-%d')
+                queryset = queryset.filter(end_time__date__lte=end_date)
+            except ValueError:
+                pass
+                
+        # Filter by active/completed/cancelled
+        status_filter = self.request.query_params.get('status_filter')
+        if status_filter:
+            if status_filter == 'active':
+                queryset = queryset.filter(status='active')
+            elif status_filter == 'completed':
+                queryset = queryset.filter(status='completed')
+            elif status_filter == 'cancelled':
+                queryset = queryset.filter(status='cancelled')
+                
+        # Search functionality
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(vehicle_plate__icontains=search) |
+                Q(notes__icontains=search) |
+                Q(parking_lot__name__icontains=search) |
+                Q(parking_space__space_number__icontains=search)
+            )
+            
+        # Sorting
+        sort_by = self.request.query_params.get('sort_by', '-created_at')
+        if sort_by:
+            # Validate sort fields to prevent SQL injection
+            allowed_sort_fields = {
+                'created_at', '-created_at',
+                'start_time', '-start_time',
+                'end_time', '-end_time',
+                'status', '-status',
+                'vehicle_plate', '-vehicle_plate'
+            }
+            if sort_by in allowed_sort_fields:
+                queryset = queryset.order_by(sort_by)
         
         return queryset
     
@@ -55,13 +127,21 @@ class ReservationViewSet(viewsets.ModelViewSet):
         """Cancel a reservation."""
         reservation = self.get_object()
         
-        if reservation.status != Reservation.Status.ACTIVE:
+        # Check if user has permission to cancel
+        if not request.user.is_admin and reservation.user != request.user:
+            return Response(
+                {'detail': 'You do not have permission to cancel this reservation.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
+        # Check if reservation can be cancelled
+        if reservation.status != 'active':
             return Response(
                 {'detail': 'Only active reservations can be cancelled.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        reservation.status = Reservation.Status.CANCELLED
+            
+        reservation.status = 'cancelled'
         reservation.save()
         
         return Response(
