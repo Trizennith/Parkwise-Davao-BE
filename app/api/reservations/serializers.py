@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from django.utils import timezone
 from .models import Reservation
-from apps.parking_lots.serializers import ParkingSpaceSerializer
-from apps.accounts.serializers import UserSerializer
+from app.api.parking_lots.serializers import ParkingSpaceSerializer
+from app.api.accounts.serializers import UserSerializer
 
 class ReservationSerializer(serializers.ModelSerializer):
     """Serializer for reservations."""

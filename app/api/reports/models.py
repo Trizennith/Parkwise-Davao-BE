@@ -1,8 +1,8 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
-from apps.parking_lots.models import ParkingLot
-from apps.reservations.models import Reservation
+from app.api.parking_lots.models import ParkingLot
+from app.api.reservations.models import Reservation
 
 User = get_user_model()
 

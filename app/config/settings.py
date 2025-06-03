@@ -34,12 +34,12 @@ INSTALLED_APPS = [
     'corsheaders',
     
     # Local apps
-    'smart_parking',
-    'apps.accounts',
-    'apps.parking_lots',
-    'apps.reservations',
-    'apps.reports',
-    'apps.jwt_blacklist',
+    'app.config',
+    'app.api.accounts',
+    'app.api.parking_lots',
+    'app.api.reservations',
+    'app.api.reports',
+    'app.api.jwt_blacklist',
 ]
 
 MIDDLEWARE = [
@@ -64,7 +64,7 @@ SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
-ROOT_URLCONF = 'smart_parking.urls'
+ROOT_URLCONF = 'app.config.urls'
 
 TEMPLATES = [
     {
@@ -82,7 +82,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'smart_parking.wsgi.application'
+WSGI_APPLICATION = 'app.config.wsgi.application'
 
 # Database
 DATABASES = {
@@ -95,6 +95,8 @@ DATABASES = {
         'PORT': os.environ.get('POSTGRES_PORT', '5435'),
     }
 }
+
+
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -134,14 +136,28 @@ AUTH_USER_MODEL = 'accounts.User'
 
 # REST Framework settings
 REST_FRAMEWORK = {
+    'EXCEPTION_HANDLER': 'app.utils.exception.custom_exception_handler',
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'apps.jwt_blacklist.authentication.BlacklistJWTAuthentication',
+        'app.api.jwt_blacklist.authentication.BlacklistJWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
+    ) if not DEBUG else (
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ),
+    'DEFAULT_PARSER_CLASSES': (
+        'rest_framework.parsers.JSONParser',
+    ) if not DEBUG else (
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser'
+    ),
 }
 
 # JWT settings

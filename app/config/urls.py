@@ -33,21 +33,21 @@ urlpatterns = [
     path('api/auth/', include([
         path('login/', TokenObtainPairView.as_view()),
         path('refresh-token/', TokenRefreshView.as_view()),
-        path('', include('apps.jwt_blacklist.urls')),
-        path('', include('apps.accounts.urls')),
+        path('', include('app.api.jwt_blacklist.urls')),
+        path('', include('app.api.accounts.urls')),
     ])),
     
     # User endpoints
     path('api/user/', include([
-        path('', include('apps.reservations.urls')),
-        path('', include('apps.parking_lots.urls')),
+        path('', include('app.api.reservations.urls')),
+        path('', include('app.api.parking_lots.urls')),
     ])),
 
     # Admin API endpoints (changed from admin-api to api/admin)
     path('api/admin/', include([
-        path('', include('apps.accounts.urls')),
-        path('', include('apps.parking_lots.urls')),
-        path('', include('apps.reservations.urls')),
-        path('', include('apps.reports.urls')),
+        path('', include('app.api.accounts.urls')),
+        path('', include('app.api.parking_lots.urls')),
+        path('', include('app.api.reservations.urls')),
+        path('', include('app.api.reports.urls')),
     ])),
 ] 

@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from django.utils import timezone
-from apps.accounts.serializers import UserSerializer
+from app.api.accounts.serializers import UserSerializer
 from .models import Reservation
 from .serializers import (
     ReservationSerializer,

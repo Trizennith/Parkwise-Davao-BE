@@ -43,15 +43,29 @@ class UserCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('email', 'username', 'password', 'password2', 
-                 'first_name', 'last_name', 'role')
+                 'first_name', 'last_name')
+        read_only_fields = ('role', 'is_staff', 'is_superuser')
     
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Password fields didn't match."})
+        
+        # Remove any attempts to set restricted fields
+        restricted_fields = ['role', 'is_staff', 'is_superuser']
+        for field in restricted_fields:
+            if field in attrs:
+                raise serializers.ValidationError(
+                    {field: f"SECURITY ALERT: Unauthorized attempt to modify {field}. This field is restricted and can only be modified by administrators."}
+                )
+        
         return attrs
     
     def create(self, validated_data):
         validated_data.pop('password2')
+        # Force role to be USER for new registrations
+        validated_data['role'] = User.Role.USER
+        validated_data['is_staff'] = False
+        validated_data['is_superuser'] = False
         user = User.objects.create_user(**validated_data)
         return user
 

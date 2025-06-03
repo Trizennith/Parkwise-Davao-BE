@@ -15,8 +15,8 @@ from .serializers import (
     UserDemographicsSerializer, MonthlyReportSerializer,
     DateRangeReportSerializer
 )
-from apps.reservations.models import Reservation
-from apps.parking_lots.models import ParkingLot
+from app.api.reservations.models import Reservation
+from app.api.parking_lots.models import ParkingLot
 
 class ReportViewSet(viewsets.ViewSet):
     """ViewSet for generating and retrieving reports."""

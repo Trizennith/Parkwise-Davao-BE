@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
-from apps.parking_lots.models import ParkingLot, ParkingSpace
-from apps.reservations.models import Reservation
+from app.api.parking_lots.models import ParkingLot, ParkingSpace
+from app.api.reservations.models import Reservation
 from django.utils import timezone
 from datetime import timedelta
 import random

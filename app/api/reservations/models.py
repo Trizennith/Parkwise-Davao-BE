@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
-from apps.parking_lots.models import ParkingLot, ParkingSpace
+from app.api.parking_lots.models import ParkingLot, ParkingSpace
 from decimal import Decimal
 
 User = get_user_model()
