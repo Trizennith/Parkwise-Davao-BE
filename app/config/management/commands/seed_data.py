@@ -2,8 +2,9 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from app.api.parking_lots.models import ParkingLot, ParkingSpace
 from app.api.reservations.models import Reservation
+from app.api.reports.models import DailyReport, MonthlyReport, ParkingLotReport
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
 import random
 from decimal import Decimal
 from django.db import connection
@@ -157,7 +158,7 @@ class Command(BaseCommand):
                 address=loc['address'],
                 total_spaces=loc['total_spaces'],
                 available_spaces=available_spaces,
-                status='active',
+                status=ParkingLot.Status.ACTIVE,
                 hourly_rate=Decimal(str(loc['hourly_rate']))
             )
             parking_lots.append(lot)
@@ -179,7 +180,7 @@ class Command(BaseCommand):
                 ParkingSpace.objects.create(
                     parking_lot=lot,
                     space_number=f"{prefix}{i+1:03d}",  # Format: "SMC001", "ABR001", etc.
-                    status='available' if should_be_available else 'occupied'
+                    status=ParkingSpace.Status.AVAILABLE if should_be_available else ParkingSpace.Status.OCCUPIED
                 )
         self.stdout.write(self.style.SUCCESS('Created parking spaces'))
 
@@ -190,47 +191,70 @@ class Command(BaseCommand):
             'MNO345', 'PQR678', 'STU901', 'VWX234', 'YZA567'
         ]
         
-        for user in users:
-            reservations_per_user = random.randint(1, 5)  # Random number of reservations per user
-            while reservations_per_user > 0:
-                lot = random.choice(parking_lots)
-                # Get an available parking space from the lot
-                available_spaces = ParkingSpace.objects.filter(
-                    parking_lot=lot,
-                    status='available'
-                )
-                
-                if not available_spaces.exists():
-                    self.stdout.write(self.style.WARNING(f'No available spaces in {lot.name}, skipping...'))
-                    break
-                
-                space = random.choice(list(available_spaces))
-                
-                # Generate realistic reservation times
-                start_time = timezone.now() + timedelta(
-                    days=random.randint(0, 7),
-                    hours=random.randint(0, 23),
-                    minutes=random.choice([0, 15, 30, 45])
-                )
-                duration = random.randint(1, 8)  # Random duration between 1 and 8 hours
-                end_time = start_time + timedelta(hours=duration)
-                
-                try:
-                    Reservation.objects.create(
+        # Generate reservations for the last 30 days
+        for day in range(30):
+            current_date = timezone.now().date() - timedelta(days=day)
+            
+            for user in users:
+                reservations_per_user = random.randint(1, 3)  # Random number of reservations per user
+                while reservations_per_user > 0:
+                    lot = random.choice(parking_lots)
+                    # Get an available parking space from the lot
+                    available_spaces = ParkingSpace.objects.filter(
                         parking_lot=lot,
-                        parking_space=space,
-                        user=user,
-                        vehicle_plate=random.choice(vehicle_plates),
-                        start_time=start_time,
-                        end_time=end_time,
-                        status='active',
-                        notes=f"Reservation for {user.get_full_name()}"
+                        status=ParkingSpace.Status.AVAILABLE
                     )
-                    reservations_per_user -= 1
-                    total_reservations += 1
-                except Exception as e:
-                    self.stdout.write(self.style.ERROR(f'Error creating reservation: {str(e)}'))
-                    break
+                    
+                    if not available_spaces.exists():
+                        self.stdout.write(self.style.WARNING(f'No available spaces in {lot.name}, skipping...'))
+                        break
+                    
+                    space = random.choice(list(available_spaces))
+                    
+                    # Generate realistic reservation times
+                    start_time = timezone.make_aware(datetime.combine(
+                        current_date,
+                        datetime.strptime(f"{random.randint(6, 20)}:{random.choice(['00', '15', '30', '45'])}", "%H:%M").time()
+                    ))
+                    duration = random.randint(1, 8)  # Random duration between 1 and 8 hours
+                    end_time = start_time + timedelta(hours=duration)
+                    
+                    try:
+                        Reservation.objects.create(
+                            parking_lot=lot,
+                            parking_space=space,
+                            user=user,
+                            vehicle_plate=random.choice(vehicle_plates),
+                            start_time=start_time,
+                            end_time=end_time,
+                            status='completed',  # Set as completed for historical data
+                            notes=f"Reservation for {user.get_full_name()}"
+                        )
+                        reservations_per_user -= 1
+                        total_reservations += 1
+                    except Exception as e:
+                        self.stdout.write(self.style.ERROR(f'Error creating reservation: {str(e)}'))
+                        break
 
         self.stdout.write(self.style.SUCCESS(f'Created {total_reservations} reservations'))
+
+        # Generate reports for the last 30 days
+        self.stdout.write('Generating reports...')
+        
+        # Generate daily reports
+        for day in range(30):
+            current_date = timezone.now().date() - timedelta(days=day)
+            DailyReport.generate_report(current_date)
+            
+            # Generate parking lot reports for each lot
+            for lot in parking_lots:
+                ParkingLotReport.generate_report(lot, current_date)
+        
+        # Generate monthly reports for the last 3 months
+        current_date = timezone.now().date()
+        for month_offset in range(3):
+            target_date = current_date - timedelta(days=30 * month_offset)
+            MonthlyReport.generate_report(target_date.year, target_date.month)
+        
+        self.stdout.write(self.style.SUCCESS('Successfully generated reports'))
         self.stdout.write(self.style.SUCCESS('Successfully seeded data')) 

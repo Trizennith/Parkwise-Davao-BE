@@ -16,7 +16,7 @@ ALLOWED_HOSTS = ['*']
 # Disable automatic appending of slashes to URLs
 APPEND_SLASH = True
 
-RUN_SERVER_PORT = 8011
+RUN_SERVER_PORT = 8000
 
 # Application definition
 INSTALLED_APPS = [
@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'drf_yasg',
     'corsheaders',
+    'channels',
     
     # Local apps
     'app.config',
@@ -40,6 +41,8 @@ INSTALLED_APPS = [
     'app.api.reservations',
     'app.api.reports',
     'app.api.jwt_blacklist',
+    'app.api.notification',
+    'app.websocket',
 ]
 
 MIDDLEWARE = [
@@ -185,6 +188,9 @@ SIMPLE_JWT = {
     'JTI_CLAIM': 'jti',
 }
 
+# WebSocket token settings
+WS_TOKEN_LIFETIME = timedelta(minutes=30)  # WebSocket tokens expire after 30 minutes
+
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "https://your-frontend-domain.com",
@@ -208,4 +214,38 @@ SWAGGER_SETTINGS = {
     },
     'USE_SESSION_AUTH': False,
     'SECURITY': [{'Bearer': []}],
+}
+
+# Channels configuration
+ASGI_APPLICATION = 'app.config.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [(os.environ.get('REDIS_HOST', 'localhost'), int(os.environ.get('REDIS_PORT', 6379)))],
+        },
+    },
+}
+
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    },
+    'loggers': {
+        'app.websocket': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
 } 

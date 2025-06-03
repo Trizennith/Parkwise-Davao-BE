@@ -41,6 +41,8 @@ urlpatterns = [
     path('api/user/', include([
         path('', include('app.api.reservations.urls')),
         path('', include('app.api.parking_lots.urls')),
+        path('', include('app.api.notification.urls')),
+        path('', include('app.websocket.urls')),
     ])),
 
     # Admin API endpoints (changed from admin-api to api/admin)

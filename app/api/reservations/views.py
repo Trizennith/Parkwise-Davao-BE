@@ -9,6 +9,7 @@ from .serializers import (
     ReservationCreateSerializer,
     ReservationUpdateSerializer
 )
+from .services import ReservationService
 from rest_framework.decorators import action
 from django.db.models import Q
 from datetime import datetime
@@ -119,54 +120,52 @@ class ReservationViewSet(viewsets.ModelViewSet):
         return queryset
     
     def perform_create(self, serializer):
-        """Create a new reservation."""
-        serializer.save(user=self.request.user)
+        """Create a new reservation using the service."""
+        validated_data = serializer.validated_data
+        reservation = ReservationService.create_reservation(
+            user=self.request.user,
+            parking_lot=validated_data['parking_lot'],
+            start_time=validated_data['start_time'],
+            end_time=validated_data['end_time'],
+            vehicle_plate=validated_data.get('vehicle_plate'),
+            notes=validated_data.get('notes'),
+            parking_space=validated_data.get('parking_space')
+        )
+        serializer.instance = reservation
     
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
-        """Cancel a reservation."""
-        reservation = self.get_object()
-        
-        # Check if user has permission to cancel
-        if not request.user.is_admin and reservation.user != request.user:
+        """Cancel a reservation using the service."""
+        try:
+            reservation = ReservationService.cancel_reservation(pk, request.user)
             return Response(
-                {'detail': 'You do not have permission to cancel this reservation.'},
-                status=status.HTTP_403_FORBIDDEN
+                {'detail': 'Reservation cancelled successfully.'},
+                status=status.HTTP_200_OK
             )
-            
-        # Check if reservation can be cancelled
-        if reservation.status != 'active':
+        except ValueError as e:
             return Response(
-                {'detail': 'Only active reservations can be cancelled.'},
+                {'detail': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            
-        reservation.status = 'cancelled'
-        reservation.save()
-        
-        return Response(
-            {'detail': 'Reservation cancelled successfully.'},
-            status=status.HTTP_200_OK
-        )
     
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
-        """Mark a reservation as completed."""
-        reservation = self.get_object()
-        
-        if reservation.status != Reservation.Status.ACTIVE:
+        """Mark a reservation as completed using the service."""
+        try:
+            reservation = ReservationService.update_reservation_status(
+                pk, 
+                'completed',
+                request.user
+            )
             return Response(
-                {'detail': 'Only active reservations can be completed.'},
+                {'detail': 'Reservation marked as completed.'},
+                status=status.HTTP_200_OK
+            )
+        except ValueError as e:
+            return Response(
+                {'detail': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        reservation.status = Reservation.Status.COMPLETED
-        reservation.save()
-        
-        return Response(
-            {'detail': 'Reservation marked as completed.'},
-            status=status.HTTP_200_OK
-        )
     
     @action(detail=False, methods=['get'])
     def my_reservations(self, request):
@@ -178,9 +177,27 @@ class ReservationViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def active(self, request):
         """Get active reservations."""
-        reservations = self.get_queryset().filter(
-            status=Reservation.Status.ACTIVE,
-            end_time__gt=timezone.now()
-        )
+        reservations = ReservationService.get_user_active_reservations(request.user)
+        serializer = self.get_serializer(reservations, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def pending(self, request):
+        """Get pending reservations."""
+        reservations = ReservationService.get_user_pending_reservations(request.user)
+        serializer = self.get_serializer(reservations, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def expired(self, request):
+        """Get expired reservations."""
+        reservations = ReservationService.get_user_expired_reservations(request.user)
+        serializer = self.get_serializer(reservations, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def cancelled(self, request):
+        """Get cancelled reservations."""
+        reservations = ReservationService.get_user_cancelled_reservations(request.user)
         serializer = self.get_serializer(reservations, many=True)
         return Response(serializer.data)

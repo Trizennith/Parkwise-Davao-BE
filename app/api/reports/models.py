@@ -3,6 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
 from app.api.parking_lots.models import ParkingLot
 from app.api.reservations.models import Reservation
+from datetime import datetime
 
 User = get_user_model()
 
@@ -66,6 +67,8 @@ class DailyReport(models.Model):
             hourly_counts[hour] = hourly_counts.get(hour, 0) + 1
         
         peak_hour = max(hourly_counts.items(), key=lambda x: x[1])[0] if hourly_counts else None
+        if peak_hour is not None:
+            peak_hour = datetime.strptime(f"{peak_hour:02d}:00", "%H:%M").time()
         
         # Calculate overall occupancy rate
         total_spaces = sum(lot.total_spaces for lot in ParkingLot.objects.all())
@@ -245,6 +248,8 @@ class ParkingLotReport(models.Model):
             hourly_counts[hour] = hourly_counts.get(hour, 0) + 1
         
         peak_hour = max(hourly_counts.items(), key=lambda x: x[1])[0] if hourly_counts else None
+        if peak_hour is not None:
+            peak_hour = datetime.strptime(f"{peak_hour:02d}:00", "%H:%M").time()
         
         # Create or update report
         report, created = cls.objects.update_or_create(

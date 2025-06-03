@@ -26,9 +26,13 @@ help:
 # Django commands
 install:
 	pip install -r requirements.txt
+	pip install daphne
 
 run:
 	$(MANAGE) runserver
+
+run-ws:
+	daphne -b 0.0.0.0 -p 8000 app.config.asgi:application
 
 test:
 	$(MANAGE) test
@@ -66,6 +70,10 @@ app.local.run:
 app.local.down: 
 	@echo "Stopping docker compose stack: $(DOCKER_COMPOSE_LOCAL_NAME)-backend-1..."
 	@docker compose -p $(DOCKER_COMPOSE_LOCAL_NAME) down
+
+docker-logs:
+	@echo "Viewing logs for $(DOCKER_COMPOSE_LOCAL_NAME)-backend-1..."
+	@docker compose -p $(DOCKER_COMPOSE_LOCAL_NAME) logs -f backend
 
 app.local.seed: 
 	@echo "Seeding database..."

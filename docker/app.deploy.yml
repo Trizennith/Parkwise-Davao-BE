@@ -12,9 +12,11 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.ws.address=:8001"
     ports:
       - "80:80"
       - "443:443"
+      - "8001:8001"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./traefik.yml:/etc/traefik/traefik.yml"
@@ -45,12 +47,16 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.app.rule=Host(`yourdomain.com`)"
       - "traefik.http.services.app.loadbalancer.server.port=8011"
       - "traefik.http.services.app.loadbalancer.sticky=true"
       - "traefik.http.services.app.loadbalancer.sticky.cookie.name=session"
+      - "traefik.ws.routers.app-ws.rule=Host(`yourdomain.com`)"
+      - "traefik.ws.services.app-ws.loadbalancer.server.port=8001"
     networks:
       - traefik-public
       - backend
@@ -74,6 +80,7 @@ services:
           memory: 256M
     depends_on:
       - db
+      - redis
 
   db:
     image: postgres:14
@@ -104,6 +111,32 @@ services:
           cpus: '0.5'
           memory: 512M
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
 networks:
   traefik-public:
     driver: overlay
@@ -114,6 +147,8 @@ networks:
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
   traefik_data:
     driver: local
