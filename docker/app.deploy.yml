@@ -1,0 +1,121 @@
+version: '3.8'
+
+services:
+  reverse-proxy:
+    image: traefik:v2.10
+    container_name: traefik
+    restart: always
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.swarmMode=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik.yml:/etc/traefik/traefik.yml"
+      - "traefik_data:/etc/traefik"
+      - "traefik_logs:/var/log/traefik"
+    networks:
+      - traefik-public
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: smart-parking-app:latest
+    restart: always
+    environment:
+      - DJANGO_SETTINGS_MODULE=app.config.settings
+      - POSTGRES_DB=smart_parking
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`yourdomain.com`)"
+      - "traefik.http.services.app.loadbalancer.server.port=8011"
+      - "traefik.http.services.app.loadbalancer.sticky=true"
+      - "traefik.http.services.app.loadbalancer.sticky.cookie.name=session"
+    networks:
+      - traefik-public
+      - backend
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    depends_on:
+      - db
+
+  db:
+    image: postgres:14
+    container_name: postgres-db
+    restart: always
+    environment:
+      - POSTGRES_DB=smart_parking
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+networks:
+  traefik-public:
+    driver: overlay
+    attachable: true
+  backend:
+    driver: overlay
+    internal: true
+
+volumes:
+  postgres_data:
+    driver: local
+  traefik_data:
+    driver: local
+  traefik_logs:
+    driver: local
