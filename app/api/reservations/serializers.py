@@ -3,6 +3,9 @@ from django.utils import timezone
 from .models import Reservation
 from app.api.parking_lots.serializers import ParkingSpaceSerializer
 from app.api.accounts.serializers import UserSerializer
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class ReservationSerializer(serializers.ModelSerializer):
     """Serializer for reservations."""
@@ -65,6 +68,12 @@ class ReservationSerializer(serializers.ModelSerializer):
 class ReservationCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating reservations."""
     
+    user = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        required=False,
+        allow_null=True
+    )
+    
     class Meta:
         model = Reservation
         fields = (
@@ -77,30 +86,35 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
         parking_space = attrs.get('parking_space')
         start_time = attrs.get('start_time')
         end_time = attrs.get('end_time')
-        user = attrs.get('user')
+        parking_lot = attrs.get('parking_lot')
         
-        # If user is not provided, use the authenticated user
-        if not user:
-            attrs['user'] = self.context['request'].user
+        
+        # Validate parking space belongs to the specified parking lot
+        if parking_space and parking_lot:
+            if parking_space.parking_lot_id != parking_lot.id:
+                raise serializers.ValidationError(
+                    "The selected parking space does not belong to the specified parking lot."
+                )
         
         # Check if space is available
-        if parking_space.status != 'available':
+        if parking_space and parking_space.status != 'available':
             raise serializers.ValidationError(
                 "This parking space is not available."
             )
         
         # Check for overlapping reservations
-        overlapping = Reservation.objects.filter(
-            parking_space=parking_space,
-            status='active',
-            start_time__lt=end_time,
-            end_time__gt=start_time
-        ).exists()
-        
-        if overlapping:
-            raise serializers.ValidationError(
-                "This space is already reserved for the selected time period."
-            )
+        if start_time and end_time and parking_space:
+            overlapping = Reservation.objects.filter(
+                parking_space=parking_space,
+                status='active',
+                start_time__lt=end_time,
+                end_time__gt=start_time
+            ).exists()
+            
+            if overlapping:
+                raise serializers.ValidationError(
+                    "This space is already reserved for the selected time period."
+                )
         
         return attrs
 

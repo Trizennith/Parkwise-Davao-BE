@@ -34,7 +34,7 @@ urlpatterns = [
     
     # Authentication
     path('api/auth/', include([
-        path('login/', TokenObtainPairView.as_view()),
+        path('login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
         path('refresh-token/', TokenRefreshView.as_view()),
         path('', include('app.api.jwt_blacklist.urls')),
         path('', include('app.api.accounts.urls')),

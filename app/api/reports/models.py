@@ -4,18 +4,23 @@ from django.contrib.auth import get_user_model
 from app.api.parking_lots.models import ParkingLot
 from app.api.reservations.models import Reservation
 from datetime import datetime
+from .validators import (
+    validate_non_negative, validate_positive, validate_percentage,
+    validate_month, validate_year, validate_future_date, validate_peak_day
+)
 
 User = get_user_model()
 
 class DailyReport(models.Model):
     """Model for daily parking reports."""
     
-    date = models.DateField(_('date'), unique=True)
+    date = models.DateField(_('date'), unique=True, validators=[validate_future_date])
     total_revenue = models.DecimalField(
         _('total revenue'),
         max_digits=10,
         decimal_places=2,
-        default=0
+        default=0,
+        validators=[validate_non_negative]
     )
     total_reservations = models.PositiveIntegerField(
         _('total reservations'),
@@ -23,12 +28,14 @@ class DailyReport(models.Model):
     )
     average_duration = models.FloatField(
         _('average duration'),
-        default=0
+        default=0,
+        validators=[validate_non_negative]
     )
     peak_hour = models.TimeField(_('peak hour'), null=True)
     occupancy_rate = models.FloatField(
         _('occupancy rate'),
-        default=0
+        default=0,
+        validators=[validate_percentage]
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -40,6 +47,12 @@ class DailyReport(models.Model):
     
     def __str__(self):
         return f"Daily Report - {self.date}"
+    
+    def clean(self):
+        """Additional validation for the model."""
+        super().clean()
+        if self.peak_hour and not isinstance(self.peak_hour, datetime.time):
+            raise ValidationError({'peak_hour': 'Invalid time format.'})
     
     @classmethod
     def generate_report(cls, date):
@@ -92,13 +105,14 @@ class DailyReport(models.Model):
 class MonthlyReport(models.Model):
     """Model for monthly parking reports."""
     
-    year = models.PositiveIntegerField(_('year'))
-    month = models.PositiveIntegerField(_('month'))
+    year = models.PositiveIntegerField(_('year'), validators=[validate_year])
+    month = models.PositiveIntegerField(_('month'), validators=[validate_month])
     total_revenue = models.DecimalField(
         _('total revenue'),
         max_digits=12,
         decimal_places=2,
-        default=0
+        default=0,
+        validators=[validate_non_negative]
     )
     total_reservations = models.PositiveIntegerField(
         _('total reservations'),
@@ -106,11 +120,13 @@ class MonthlyReport(models.Model):
     )
     average_duration = models.FloatField(
         _('average duration'),
-        default=0
+        default=0,
+        validators=[validate_non_negative]
     )
     average_occupancy_rate = models.FloatField(
         _('average occupancy rate'),
-        default=0
+        default=0,
+        validators=[validate_percentage]
     )
     peak_day = models.DateField(_('peak day'), null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -124,6 +140,12 @@ class MonthlyReport(models.Model):
     
     def __str__(self):
         return f"Monthly Report - {self.year}/{self.month}"
+    
+    def clean(self):
+        """Additional validation for the model."""
+        super().clean()
+        if self.peak_day:
+            validate_peak_day(self.peak_day, self.year, self.month)
     
     @classmethod
     def generate_report(cls, year, month):
@@ -186,12 +208,13 @@ class ParkingLotReport(models.Model):
         on_delete=models.CASCADE,
         related_name='reports'
     )
-    date = models.DateField(_('date'))
+    date = models.DateField(_('date'), validators=[validate_future_date])
     total_revenue = models.DecimalField(
         _('total revenue'),
         max_digits=10,
         decimal_places=2,
-        default=0
+        default=0,
+        validators=[validate_non_negative]
     )
     total_reservations = models.PositiveIntegerField(
         _('total reservations'),
@@ -199,11 +222,13 @@ class ParkingLotReport(models.Model):
     )
     occupancy_rate = models.FloatField(
         _('occupancy rate'),
-        default=0
+        default=0,
+        validators=[validate_percentage]
     )
     average_duration = models.FloatField(
         _('average duration'),
-        default=0
+        default=0,
+        validators=[validate_non_negative]
     )
     peak_hour = models.TimeField(_('peak hour'), null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -217,6 +242,14 @@ class ParkingLotReport(models.Model):
     
     def __str__(self):
         return f"{self.parking_lot.name} - {self.date}"
+    
+    def clean(self):
+        """Additional validation for the model."""
+        super().clean()
+        if self.peak_hour and not isinstance(self.peak_hour, datetime.time):
+            raise ValidationError({'peak_hour': 'Invalid time format.'})
+        if not ParkingLot.objects.filter(id=self.parking_lot.id).exists():
+            raise ValidationError({'parking_lot': 'Parking lot does not exist.'})
     
     @classmethod
     def generate_report(cls, parking_lot, date):

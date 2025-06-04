@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.conf import settings
 from datetime import timedelta
+from rest_framework.exceptions import PermissionDenied
 
 User = get_user_model()
 
@@ -100,14 +101,28 @@ class UserLoginView(TokenObtainPairView):
     permission_classes = (permissions.AllowAny,)
 
 
-class UserProfileView(generics.RetrieveUpdateAPIView):
-    """View for retrieving and updating user profile."""
-
-    serializer_class = UserSerializer
-    permission_classes = (permissions.IsAuthenticated,)
+class ProfileView(generics.RetrieveUpdateAPIView):
+    serializer_class = ProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        return self.request.user
+        try:
+            return self.request.user.profile
+        except Exception as e:
+            raise PermissionDenied("Invalid or expired token")
+
+    def update(self, request, *args, **kwargs):
+        try:
+            partial = kwargs.pop('partial', False)
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, data=request.data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+            return Response(serializer.data)
+        except PermissionDenied as e:
+            return Response({"error": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ChangePasswordView(generics.UpdateAPIView):

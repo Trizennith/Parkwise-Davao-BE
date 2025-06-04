@@ -100,10 +100,31 @@ class ChangePasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError("Old password is not correct")
         return value
 
-class ProfileSerializer(serializers.ModelSerializer):
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Serializer for user profile data."""
     user = UserSerializer(read_only=True)
     
     class Meta:
         model = Profile
-        fields = ('id', 'user', 'role', 'status', 'avatar_url', 'phone_number')
-        read_only_fields = ('id',) 
+        fields = ('id', 'user', 'phone_number', 'address', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'user', 'created_at', 'updated_at')
+
+class ProfileSerializer(serializers.ModelSerializer):
+    # User fields
+    email = serializers.EmailField(source='user.email', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+    first_name = serializers.CharField(source='user.first_name', read_only=True)
+    last_name = serializers.CharField(source='user.last_name', read_only=True)
+    role = serializers.CharField(source='user.role', read_only=True)
+    status = serializers.CharField(source='user.status', read_only=True)
+    avatar_url = serializers.URLField(source='user.avatar_url', read_only=True)
+    created_at = serializers.DateTimeField(source='user.created_at', read_only=True)
+    updated_at = serializers.DateTimeField(source='user.updated_at', read_only=True)
+    
+    class Meta:
+        model = Profile
+        fields = ('id', 'email', 'username', 'first_name', 'last_name', 'role', 
+                 'status', 'avatar_url', 'phone_number', 'address', 'created_at', 
+                 'updated_at')
+        read_only_fields = ('id', 'email', 'username', 'first_name', 'last_name', 
+                          'role', 'status', 'avatar_url', 'created_at', 'updated_at') 

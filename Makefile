@@ -94,7 +94,9 @@ run.local:
 run:
 	@. ./venv/bin/activate && python manage.py runserver
 
-
+app.local.test:
+	@./scripts/run_tests.sh   
+	
 
 
 check.docker.compose-stack:

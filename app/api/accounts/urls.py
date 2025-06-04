@@ -10,11 +10,11 @@ urlpatterns = router.urls
 
 # Authentication endpoints
 urlpatterns += [
-    path('register/', views.UserRegistrationView.as_view()),
+    path('register/', views.UserRegistrationView.as_view(), name='user-register'),
     path('login/', views.UserLoginView.as_view()),
     path('refresh-token/', views.UserLoginView.as_view()),  # Using UserLoginView for token refresh
     path('change-password/', views.ChangePasswordView.as_view()),
-    path('profile/', views.UserProfileView.as_view()),
+    path('profile/', views.ProfileView.as_view(), name='user-profile'),
     path('users/', views.UserListView.as_view()),
     path('token/ws/', views.WebSocketTokenView.as_view(), name='token_websocket'),
 ] 

@@ -3,7 +3,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from django.utils import timezone
 from app.api.accounts.serializers import UserSerializer
-from .models import Reservation
+from .models import Reservation, User
 from .serializers import (
     ReservationSerializer,
     ReservationCreateSerializer,
@@ -135,24 +135,21 @@ class ReservationViewSet(viewsets.ModelViewSet):
         
         # Get the user from the validated data
         user = validated_data.get('user')
-        
-        # Debug print to show the User object
-        print(f"User object: {user}")  # This will show the full User object
-        print(f"User details: {user.email}, {user.get_full_name()}")
+        print(f"User object: {user} 👈👈👈👈👈👈")
         
         # If user is specified and request user is not admin, raise permission error
-        if user and not self.request.user.is_admin:
+        if user is not None and self.request.user.role != User.Role.ADMIN:
             raise PermissionDenied(
                 "Only administrators can create reservations for other users."
             )
         
         # If no user specified, use the authenticated user
-        if not user:
+        if user is None:
             user = self.request.user
         
         try:
             reservation = ReservationService.create_reservation(
-                user=user,  # This is now a full User object
+                user=user,
                 parking_lot=validated_data['parking_lot'],
                 start_time=validated_data['start_time'],
                 end_time=validated_data['end_time'],

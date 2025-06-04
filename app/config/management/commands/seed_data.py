@@ -238,23 +238,130 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f'Created {total_reservations} reservations'))
 
-        # Generate reports for the last 30 days
+        # Generate reports with more comprehensive data
         self.stdout.write('Generating reports...')
         
-        # Generate daily reports
+        # Generate daily reports for the last 30 days
         for day in range(30):
             current_date = timezone.now().date() - timedelta(days=day)
-            DailyReport.generate_report(current_date)
+            
+            # Get reservations for the day
+            day_reservations = Reservation.objects.filter(
+                start_time__date=current_date,
+                status='completed'
+            )
+            
+            # Calculate daily statistics
+            total_revenue = sum(res.total_cost for res in day_reservations)
+            total_reservations = day_reservations.count()
+            
+            # Calculate average duration
+            durations = [res.duration for res in day_reservations]
+            average_duration = sum(durations) / len(durations) if durations else 0
+            
+            # Find peak hour
+            hourly_counts = {}
+            for res in day_reservations:
+                hour = res.start_time.hour
+                hourly_counts[hour] = hourly_counts.get(hour, 0) + 1
+            
+            peak_hour = max(hourly_counts.items(), key=lambda x: x[1])[0] if hourly_counts else None
+            if peak_hour is not None:
+                peak_hour = datetime.strptime(f"{peak_hour:02d}:00", "%H:%M").time()
+            
+            # Calculate occupancy rate
+            total_spaces = sum(lot.total_spaces for lot in parking_lots)
+            occupied_spaces = sum(lot.total_spaces - lot.available_spaces for lot in parking_lots)
+            occupancy_rate = (occupied_spaces / total_spaces * 100) if total_spaces > 0 else 0
+            
+            # Create daily report
+            DailyReport.objects.create(
+                date=current_date,
+                total_revenue=total_revenue,
+                total_reservations=total_reservations,
+                average_duration=average_duration,
+                peak_hour=peak_hour,
+                occupancy_rate=occupancy_rate
+            )
             
             # Generate parking lot reports for each lot
             for lot in parking_lots:
-                ParkingLotReport.generate_report(lot, current_date)
+                lot_reservations = day_reservations.filter(parking_lot=lot)
+                lot_revenue = sum(res.total_cost for res in lot_reservations)
+                lot_reservations_count = lot_reservations.count()
+                lot_durations = [res.duration for res in lot_reservations]
+                lot_average_duration = sum(lot_durations) / len(lot_durations) if lot_durations else 0
+                
+                # Calculate lot-specific peak hour
+                lot_hourly_counts = {}
+                for res in lot_reservations:
+                    hour = res.start_time.hour
+                    lot_hourly_counts[hour] = lot_hourly_counts.get(hour, 0) + 1
+                
+                lot_peak_hour = max(lot_hourly_counts.items(), key=lambda x: x[1])[0] if lot_hourly_counts else None
+                if lot_peak_hour is not None:
+                    lot_peak_hour = datetime.strptime(f"{lot_peak_hour:02d}:00", "%H:%M").time()
+                
+                # Calculate lot occupancy rate
+                lot_occupancy_rate = ((lot.total_spaces - lot.available_spaces) / lot.total_spaces * 100) if lot.total_spaces > 0 else 0
+                
+                ParkingLotReport.objects.create(
+                    parking_lot=lot,
+                    date=current_date,
+                    total_revenue=lot_revenue,
+                    total_reservations=lot_reservations_count,
+                    average_duration=lot_average_duration,
+                    peak_hour=lot_peak_hour,
+                    occupancy_rate=lot_occupancy_rate
+                )
         
-        # Generate monthly reports for the last 3 months
+        # Generate monthly reports for the last 12 months
         current_date = timezone.now().date()
-        for month_offset in range(3):
+        for month_offset in range(12):
             target_date = current_date - timedelta(days=30 * month_offset)
-            MonthlyReport.generate_report(target_date.year, target_date.month)
+            year = target_date.year
+            month = target_date.month
+            
+            # Get reservations for the month
+            month_reservations = Reservation.objects.filter(
+                start_time__year=year,
+                start_time__month=month,
+                status='completed'
+            )
+            
+            # Calculate monthly statistics
+            total_revenue = sum(res.total_cost for res in month_reservations)
+            total_reservations = month_reservations.count()
+            
+            # Calculate average duration
+            durations = [res.duration for res in month_reservations]
+            average_duration = sum(durations) / len(durations) if durations else 0
+            
+            # Calculate average occupancy rate from daily reports
+            daily_reports = DailyReport.objects.filter(
+                date__year=year,
+                date__month=month
+            )
+            average_occupancy_rate = sum(report.occupancy_rate for report in daily_reports) / len(daily_reports) if daily_reports else 0
+            
+            # Find peak day
+            daily_counts = {}
+            for res in month_reservations:
+                day = res.start_time.date()
+                daily_counts[day] = daily_counts.get(day, 0) + 1
+            
+            peak_day = max(daily_counts.items(), key=lambda x: x[1])[0] if daily_counts else None
+            
+            # Create monthly report
+            MonthlyReport.objects.create(
+                year=year,
+                month=month,
+                total_revenue=total_revenue,
+                total_reservations=total_reservations,
+                average_duration=average_duration,
+                average_occupancy_rate=average_occupancy_rate,
+                peak_day=peak_day
+            )
         
         self.stdout.write(self.style.SUCCESS('Successfully generated reports'))
         self.stdout.write(self.style.SUCCESS('Successfully seeded data')) 
