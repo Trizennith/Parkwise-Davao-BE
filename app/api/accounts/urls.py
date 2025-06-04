@@ -1,5 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
 
 router = DefaultRouter(trailing_slash=True)
@@ -15,4 +16,5 @@ urlpatterns += [
     path('change-password/', views.ChangePasswordView.as_view()),
     path('profile/', views.UserProfileView.as_view()),
     path('users/', views.UserListView.as_view()),
+    path('token/ws/', views.WebSocketTokenView.as_view(), name='token_websocket'),
 ] 

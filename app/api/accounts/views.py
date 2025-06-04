@@ -12,9 +12,11 @@ from .serializers import (
     ChangePasswordSerializer,
     ProfileSerializer,
 )
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
+from django.conf import settings
+from datetime import timedelta
 
 User = get_user_model()
 
@@ -144,3 +146,25 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = (permissions.IsAdminUser,)
+
+
+class WebSocketTokenView(APIView):
+    """
+    View to generate a WebSocket-specific JWT token.
+    This token has a shorter lifetime and is specifically for WebSocket connections.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        # Create a new token with shorter lifetime
+        token = AccessToken.for_user(request.user)
+        
+        # Set the token lifetime to 30 minutes
+        token.set_exp(lifetime=timedelta(minutes=30))
+        
+        # Add a custom claim to identify this as a WebSocket token
+        token['token_type'] = 'websocket'
+        
+        return Response({
+            'access': str(token)
+        })

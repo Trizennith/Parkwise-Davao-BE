@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import ParkingLot, ParkingSpace
+from app.api.realtime.utils import send_notification_to_all
 
 class ParkingSpaceSerializer(serializers.ModelSerializer):
     """Serializer for parking spaces."""
@@ -51,6 +52,20 @@ class ParkingLotCreateSerializer(serializers.ModelSerializer):
                 parking_lot=parking_lot,
                 space_number=str(i).zfill(3)
             )
+        
+        # Send notification to all users about the new parking lot
+        send_notification_to_all({
+            "type": "new_parking_lot",
+            "message": f"New parking lot '{parking_lot.name}' has been added",
+            "data": {
+                "parking_lot_id": parking_lot.id,
+                "name": parking_lot.name,
+                "address": parking_lot.address,
+                "total_spaces": parking_lot.total_spaces,
+                "hourly_rate": str(parking_lot.hourly_rate),
+                "status": parking_lot.status
+            }
+        })
         
         return parking_lot
 

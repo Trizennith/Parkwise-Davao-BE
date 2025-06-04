@@ -14,6 +14,8 @@ from rest_framework.decorators import action
 from django.db.models import Q
 from datetime import datetime
 from rest_framework.pagination import PageNumberPagination
+from app.api.realtime.utils import send_notification_to_user
+from django.core.exceptions import PermissionDenied
 
 class StandardResultsSetPagination(PageNumberPagination):
     """Custom pagination class for consistent page sizes."""
@@ -119,30 +121,124 @@ class ReservationViewSet(viewsets.ModelViewSet):
         
         return queryset
     
+    def get_object(self):
+        """Get the reservation object, allowing admin to access any reservation."""
+        obj = super().get_object()
+        # If user is not admin, check if they own the reservation
+        if not self.request.user.is_admin and obj.user != self.request.user:
+            raise PermissionDenied("You don't have permission to access this reservation.")
+        return obj
+    
     def perform_create(self, serializer):
         """Create a new reservation using the service."""
         validated_data = serializer.validated_data
-        reservation = ReservationService.create_reservation(
-            user=self.request.user,
-            parking_lot=validated_data['parking_lot'],
-            start_time=validated_data['start_time'],
-            end_time=validated_data['end_time'],
-            vehicle_plate=validated_data.get('vehicle_plate'),
-            notes=validated_data.get('notes'),
-            parking_space=validated_data.get('parking_space')
-        )
-        serializer.instance = reservation
+        
+        # Get the user from the validated data
+        user = validated_data.get('user')
+        
+        # Debug print to show the User object
+        print(f"User object: {user}")  # This will show the full User object
+        print(f"User details: {user.email}, {user.get_full_name()}")
+        
+        # If user is specified and request user is not admin, raise permission error
+        if user and not self.request.user.is_admin:
+            raise PermissionDenied(
+                "Only administrators can create reservations for other users."
+            )
+        
+        # If no user specified, use the authenticated user
+        if not user:
+            user = self.request.user
+        
+        try:
+            reservation = ReservationService.create_reservation(
+                user=user,  # This is now a full User object
+                parking_lot=validated_data['parking_lot'],
+                start_time=validated_data['start_time'],
+                end_time=validated_data['end_time'],
+                vehicle_plate=validated_data.get('vehicle_plate'),
+                notes=validated_data.get('notes'),
+                parking_space=validated_data.get('parking_space')
+            )
+            serializer.instance = reservation
+        except Exception as e:
+            raise serializers.ValidationError(str(e))
+    
+    def perform_update(self, serializer):
+        """Update a reservation and notify the correct user."""
+        instance = self.get_object()
+        
+        # Get the user who should receive the notification (the reservation owner)
+        notification_user = instance.user
+        
+        try:
+            # Perform the update
+            serializer.save()
+            
+            # Send notification to the reservation owner
+            send_notification_to_user(
+                notification_user.id,
+                f"Your reservation has been updated",
+                {
+                    "reservation_id": instance.id,
+                    "parking_lot": instance.parking_lot.name,
+                    "updated_by": self.request.user.get_full_name() if self.request.user.is_admin else "You",
+                    "changes": serializer.validated_data
+                }
+            )
+        except Exception as e:
+            raise serializers.ValidationError(str(e))
+    
+    def perform_destroy(self, instance):
+        """Delete a reservation and notify the correct user."""
+        # Get the user who should receive the notification (the reservation owner)
+        notification_user = instance.user
+        
+        try:
+            # Send notification before deleting
+            send_notification_to_user(
+                notification_user.id,
+                "Your reservation has been deleted",
+                {
+                    "reservation_id": instance.id,
+                    "parking_lot": instance.parking_lot.name,
+                    "deleted_by": self.request.user.get_full_name() if self.request.user.is_admin else "You"
+                }
+            )
+            
+            # Delete the reservation
+            instance.delete()
+        except Exception as e:
+            raise serializers.ValidationError(str(e))
     
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         """Cancel a reservation using the service."""
         try:
+            reservation = self.get_object()
+            
+            # Get the user who should receive the notification (the reservation owner)
+            notification_user = reservation.user
+            
+            # Cancel the reservation
             reservation = ReservationService.cancel_reservation(pk, request.user)
+            
+            # Send notification to the reservation owner
+            send_notification_to_user(
+                notification_user.id,
+                "Your reservation has been cancelled",
+                {
+                    "reservation_id": reservation.id,
+                    "parking_lot": reservation.parking_lot.name,
+                    "cancelled_by": request.user.get_full_name() if request.user.is_admin else "You"
+                }
+            )
+            
             return Response(
                 {'detail': 'Reservation cancelled successfully.'},
                 status=status.HTTP_200_OK
             )
-        except ValueError as e:
+        except (ValueError, PermissionDenied) as e:
             return Response(
                 {'detail': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
@@ -152,16 +248,34 @@ class ReservationViewSet(viewsets.ModelViewSet):
     def complete(self, request, pk=None):
         """Mark a reservation as completed using the service."""
         try:
+            reservation = self.get_object()
+            
+            # Get the user who should receive the notification (the reservation owner)
+            notification_user = reservation.user
+            
+            # Update the reservation status
             reservation = ReservationService.update_reservation_status(
                 pk, 
                 'completed',
                 request.user
             )
+            
+            # Send notification to the reservation owner
+            send_notification_to_user(
+                notification_user.id,
+                "Your reservation has been marked as completed",
+                {
+                    "reservation_id": reservation.id,
+                    "parking_lot": reservation.parking_lot.name,
+                    "completed_by": request.user.get_full_name() if request.user.is_admin else "You"
+                }
+            )
+            
             return Response(
                 {'detail': 'Reservation marked as completed.'},
                 status=status.HTTP_200_OK
             )
-        except ValueError as e:
+        except (ValueError, PermissionDenied) as e:
             return Response(
                 {'detail': str(e)},
                 status=status.HTTP_400_BAD_REQUEST

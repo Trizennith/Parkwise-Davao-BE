@@ -68,7 +68,7 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reservation
         fields = (
-            'parking_lot', 'parking_space', 'vehicle_plate',
+            'user', 'parking_lot', 'parking_space', 'vehicle_plate',
             'notes', 'start_time', 'end_time'
         )
     
@@ -77,6 +77,11 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
         parking_space = attrs.get('parking_space')
         start_time = attrs.get('start_time')
         end_time = attrs.get('end_time')
+        user = attrs.get('user')
+        
+        # If user is not provided, use the authenticated user
+        if not user:
+            attrs['user'] = self.context['request'].user
         
         # Check if space is available
         if parking_space.status != 'available':

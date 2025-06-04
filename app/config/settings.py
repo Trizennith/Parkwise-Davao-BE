@@ -20,6 +20,9 @@ RUN_SERVER_PORT = 8000
 
 # Application definition
 INSTALLED_APPS = [
+    'channels',
+    
+    # Django apps
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -32,7 +35,6 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'drf_yasg',
     'corsheaders',
-    'channels',
     
     # Local apps
     'app.config',
@@ -42,7 +44,7 @@ INSTALLED_APPS = [
     'app.api.reports',
     'app.api.jwt_blacklist',
     'app.api.notification',
-    'app.websocket',
+    'app.api.realtime',
 ]
 
 MIDDLEWARE = [
@@ -218,14 +220,10 @@ SWAGGER_SETTINGS = {
 
 # Channels configuration
 ASGI_APPLICATION = 'app.config.asgi.application'
-
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [(os.environ.get('REDIS_HOST', 'localhost'), int(os.environ.get('REDIS_PORT', 6379)))],
-        },
-    },
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
 }
 
 # Logging configuration
@@ -242,7 +240,7 @@ LOGGING = {
         'level': 'DEBUG',
     },
     'loggers': {
-        'app.websocket': {
+        'app.api.realtime': {
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False,
