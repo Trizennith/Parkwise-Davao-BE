@@ -1,4 +1,9 @@
-.PHONY: help install run test migrate makemigrations shell clean docker-build docker-run docker-stop docker-logs
+.PHONY: help install run test migrate makemigrations shell clean docker-build docker-run docker-stop docker-logs app.local.build 
+
+ifneq (,$(wildcard .env.local))
+    include .env.local
+    export
+endif
 
 # Variables
 DOCKER_COMPOSE = docker compose
@@ -21,9 +26,13 @@ help:
 # Django commands
 install:
 	pip install -r requirements.txt
+	pip install daphne
 
 run:
 	$(MANAGE) runserver
+
+run-ws:
+	daphne -b 0.0.0.0 -p 8000 app.config.asgi:application
 
 test:
 	$(MANAGE) test
@@ -50,14 +59,45 @@ clean:
 	find . -type d -name "htmlcov" -exec rm -r {} +
 
 # Docker commands
-docker-build:
-	$(DOCKER_COMPOSE) build
+app.local.build:
+	@docker compose -f ./docker/app.local.yml build --no-cache --force-rm
+	@docker compose -f ./docker/app.local.yml up -d
 
-docker-run:
-	$(DOCKER_COMPOSE) up -d
+app.local.run:
+	@echo "Starting docker compose stack: $(DOCKER_COMPOSE_LOCAL_NAME)-backend-1..."
+	@docker compose -p $(DOCKER_COMPOSE_LOCAL_NAME) up -d
 
-docker-stop:
-	$(DOCKER_COMPOSE) down
+app.local.down: 
+	@echo "Stopping docker compose stack: $(DOCKER_COMPOSE_LOCAL_NAME)-backend-1..."
+	@docker compose -p $(DOCKER_COMPOSE_LOCAL_NAME) down
 
 docker-logs:
-	$(DOCKER_COMPOSE) logs -f 
+	@echo "Viewing logs for $(DOCKER_COMPOSE_LOCAL_NAME)-backend-1..."
+	@docker compose -p $(DOCKER_COMPOSE_LOCAL_NAME) logs -f backend
+
+app.local.seed: 
+	@echo "Seeding database..."
+	@docker exec -it $(DOCKER_COMPOSE_LOCAL_NAME)-backend-1 python manage.py seed_data
+
+app.local.db.build:
+	@docker compose -f ./docker/app.local.db.yml build --no-cache --force-rm
+	@docker compose -f ./docker/app.local.db.yml up -d
+
+app.local.db.down:
+	@docker compose -f ./docker/app.local.db.yml down
+
+run.local:
+	@echo "Starting the local development environment..."
+	@docker compose -f ./docker/app.local.db.yml up -d
+	@. ./venv/bin/activate && python manage.py runserver
+
+run:
+	@. ./venv/bin/activate && python manage.py runserver
+
+
+
+
+check.docker.compose-stack:
+ifndef $(DOCKER_COMPOSE_LOCAL_NAME)
+	$(error DOCKER_COMPOSE_LOCAL_NAME is undefined. Use: make "<command>" DOCKER_COMPOSE_LOCAL_NAME=<DOCKER_COMPOSE_LOCAL_NAME>)
+endif
