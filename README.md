@@ -1,4 +1,4 @@
-# Smart Parking Davao Backend
+# Smart Parking Davao Backend  (Parkwise Davao)
 
 A Django-based backend system for the Smart Parking Davao application, providing parking management, reservation, and reporting capabilities.
 
