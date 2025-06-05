@@ -15,11 +15,11 @@ The backend service for ParkWise Davao, a smart parking management system provid
 
 ## Tech Stack
 
-- Django 4.2
-- Django REST Framework
-- Channels (WebSocket)
-- PostgreSQL
-- Redis
+- Django 5.0.2
+- Django REST Framework 3.14.0
+- Channels 4.0.0 (WebSocket)
+- PostgreSQL 14+
+- Redis 7+
 - JWT Authentication
 - Docker & Docker Swarm
 - Traefik (Reverse Proxy)
@@ -35,8 +35,8 @@ The backend service for ParkWise Davao, a smart parking management system provid
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-username/parkwise-davao.git
-cd parkwise-davao/back-end
+git clone https://github.com/Trizennith/Parkwise-Davao-BE.git
+cd Parkwise-Davao-BE
 ```
 
 2. Set up the development environment:
@@ -64,50 +64,30 @@ python manage.py runserver
 
 ## Docker Development
 
-1. Build and start the containers:
+1. Local Development (with local database):
 ```bash
-docker-compose -f docker/app.dev.yml up --build
+docker-compose -f docker/app.local.db.yml up --build
 ```
 
-2. Access the services:
+2. Local Development (with containerized database):
+```bash
+docker-compose -f docker/app.local.yml up --build
+```
+
+3. Access the services:
 - API: http://localhost:8011
 - Admin Interface: http://localhost:8011/admin
 - API Documentation: http://localhost:8011/api/docs/
 
-## API Documentation
+## Testing
 
-- Swagger UI: http://localhost:8011/api/docs/
-- ReDoc: http://localhost:8011/api/redoc/
+Run the test suite using Docker:
+```bash
+# Run all tests
+./scripts/run_tests.sh
 
-## WebSocket Events
-
-The system uses WebSocket for real-time updates. Available events:
-
-- `parking_space_update`: Updates when parking space status changes
-- `reservation_update`: Updates when reservation status changes
-- `payment_update`: Updates when payment status changes
-
-## Environment Variables
-
-Create a `.env` file in the project root:
-
-```env
-# Django
-DJANGO_SECRET_KEY=your_secret_key
-DJANGO_DEBUG=True
-DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
-DJANGO_CORS_ALLOWED_ORIGINS=http://localhost:5173
-
-# Database
-POSTGRES_DB=parkwise_davao
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
+# Or manually using Docker Compose
+docker-compose -f docker/app.test.yml up --build
 ```
 
 ## Project Structure
@@ -124,13 +104,87 @@ back-end/
 │   │   ├── notification/ # Notification system
 │   │   └── realtime/     # WebSocket handling
 │   ├── config/           # Django settings
-│   └── utils/            # Utility functions
-├── docker/               # Docker configuration
-│   ├── app.dev.yml      # Development compose file
-│   └── app.deploy.yml   # Production compose file
-├── requirements.txt      # Python dependencies
-└── README.md            # This file
+│   ├── test/            # Test modules
+│   │   ├── accounts/    # Account tests
+│   │   ├── parking_lots/# Parking lot tests
+│   │   ├── reservations/# Reservation tests
+│   │   └── reports/     # Report tests
+│   └── utils/           # Utility functions
+├── docker/              # Docker configuration
+│   ├── app.local.yml   # Local development compose file
+│   ├── app.local.db.yml# Local development with local DB
+│   ├── app.test.yml    # Test environment compose file
+│   ├── app.deploy.yml  # Production compose file
+│   └── traefik.yml     # Traefik configuration
+├── scripts/            # Utility scripts
+│   └── run_tests.sh   # Test runner script
+├── requirements.txt    # Python dependencies
+└── README.md          # This file
 ```
+
+## Environment Variables
+
+The application uses environment variables for configuration. You can set these up in two ways:
+
+1. Using a `.env` file (recommended for local development):
+   ```bash
+   # Copy the example file
+   cp .env.example .env
+   
+   # Edit the .env file with your settings
+   nano .env
+   ```
+
+2. Setting environment variables directly (recommended for production):
+   ```bash
+   export DJANGO_SECRET_KEY=your-secret-key
+   export DJANGO_DEBUG=False
+   # ... etc
+   ```
+
+### Required Environment Variables
+
+```env
+# Django Settings
+DJANGO_SECRET_KEY=your-secret-key-here
+DJANGO_DEBUG=True
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+DJANGO_CORS_ALLOWED_ORIGINS=http://localhost:5173
+
+# Database Settings
+POSTGRES_DB=parkwise_davao
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+
+# Redis Settings
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# Channel Layers Settings
+CHANNEL_LAYERS_REDIS_HOST=localhost
+CHANNEL_LAYERS_REDIS_PORT=6379
+```
+
+### Environment Variables in Different Environments
+
+- **Local Development**: Use `.env` file
+- **Testing**: Environment variables are set in GitHub Actions workflow
+- **Staging/Production**: Environment variables are set in Docker Compose files
+
+## API Documentation
+
+- Swagger UI: http://localhost:8011/api/docs/
+- ReDoc: http://localhost:8011/api/redoc/
+
+## WebSocket Events
+
+The system uses WebSocket for real-time updates. Available events:
+
+- `parking_space_update`: Updates when parking space status changes
+- `reservation_update`: Updates when reservation status changes
+- `payment_update`: Updates when payment status changes
 
 ## API Endpoints
 
@@ -197,20 +251,6 @@ back-end/
 - `GET /api/reports/export/`: Export reports (CSV)
 - `GET /api/reports/summary/`: Get report summary
 
-## Testing
-
-Run the test suite:
-```bash
-# Run all tests
-python manage.py test
-
-# Run specific test modules
-python manage.py test app.test.accounts
-python manage.py test app.test.parking_lots
-python manage.py test app.test.reservations
-python manage.py test app.test.reports
-```
-
 ## Security
 
 - JWT Authentication for all API endpoints
@@ -235,17 +275,3 @@ python manage.py test app.test.reports
 ## Production Deployment
 
 For production deployment instructions, see the [Docker Deployment Guide](docker/README.md).
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-For support, email support@parkwise-davao.com or create an issue in the repository.
-
-## Acknowledgments
-
-- Davao City Government
-- All contributors
-- Open source community 

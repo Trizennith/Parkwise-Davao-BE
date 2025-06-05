@@ -19,11 +19,16 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project
+# Copy project files
 COPY . .
 
-# Collect static files
-RUN python manage.py collectstatic --noinput
+# Create a non-root user
+RUN useradd -m appuser && chown -R appuser:appuser /app
+USER appuser
 
-# Run gunicorn
-CMD ["gunicorn", "app.config.wsgi:application", "--bind", "0.0.0.0:8011", "--workers", "4", "--threads", "2"] 
+# Expose ports
+EXPOSE 8011
+EXPOSE 8001
+
+# Run Daphne
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8011", "app.config.asgi:application"] 

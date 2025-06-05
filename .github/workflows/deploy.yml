@@ -3,7 +3,7 @@ name: Smart Parking CI/CD
 on:
   push:
     branches:
-      - release
+      - main
 
 env:
   DOCKER_IMAGE: smart-parking-app
