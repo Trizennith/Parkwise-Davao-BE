@@ -20,6 +20,8 @@ venv/
 env/
 *.egg-info/
 .eggs/
+.venv/
+.pipenv/
 
 # IDEs and editors
 .vscode/

@@ -30,8 +30,8 @@ services:
       context: ..
       dockerfile: Dockerfile
     command: >
-      sh -c "python manage.py migrate &&
-             python manage.py test app.test.accounts app.test.parking_lots app.test.reservations app.test.reports --verbosity=2"
+      sh -c "pipenv run python manage.py migrate &&
+             pipenv run python manage.py test app.test.accounts app.test.parking_lots app.test.reservations app.test.reports --verbosity=2"
     environment:
       - DJANGO_SECRET_KEY=test_secret_key
       - DJANGO_DEBUG=True

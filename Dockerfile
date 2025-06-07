@@ -5,6 +5,7 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=app.config.settings
+ENV PIPENV_VENV_IN_PROJECT=1
 
 # Set work directory
 WORKDIR /app
@@ -15,9 +16,14 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Pipenv
+RUN pip install --no-cache-dir pipenv
+
+# Copy Pipfile files
+COPY Pipfile Pipfile.lock* ./
+
 # Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pipenv install --deploy --system
 
 # Copy project files
 COPY . .
@@ -28,7 +34,6 @@ USER appuser
 
 # Expose ports
 EXPOSE 8011
-EXPOSE 8001
 
 # Run Daphne
 CMD ["daphne", "-b", "0.0.0.0", "-p", "8011", "app.config.asgi:application"] 

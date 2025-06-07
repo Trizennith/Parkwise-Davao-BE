@@ -1,4 +1,4 @@
-.PHONY: help install run test migrate makemigrations shell clean docker-build docker-run docker-stop docker-logs app.local.build 
+.PHONY: help install run test migrate makemigrations shell clean docker-build docker-run docker-stop docker-logs app.local.build update-requirements
 
 ifneq (,$(wildcard .env.local))
     include .env.local
@@ -12,7 +12,7 @@ MANAGE = $(PYTHON) manage.py
 
 help:
 	@echo "Available commands:"
-	@echo "  make install    - Install project dependencies"
+	@echo "  make install    - Install project dependencies with Pipenv"
 	@echo "  make run        - Run the development server"
 	@echo "  make test       - Run tests"
 	@echo "  make migrate    - Run database migrations"
@@ -22,29 +22,30 @@ help:
 	@echo "  make docker-run   - Run Docker containers"
 	@echo "  make docker-stop  - Stop Docker containers"
 	@echo "  make docker-logs  - View Docker container logs"
+	@echo "  make update-requirements - Generate requirements.txt from Pipfile for compatibility"
 
 # Django commands
 install:
-	pip install -r requirements.txt
-	pip install daphne
+	pip install pipenv
+	pipenv install
 
 run:
-	$(MANAGE) runserver
+	pipenv run $(MANAGE) runserver
 
 run-ws:
-	daphne -b 0.0.0.0 -p 8000 app.config.asgi:application
+	pipenv run daphne -b 0.0.0.0 -p 8000 app.config.asgi:application
 
 test:
-	$(MANAGE) test
+	pipenv run $(MANAGE) test
 
 migrate:
-	$(MANAGE) migrate
+	pipenv run $(MANAGE) migrate
 
 makemigrations:
-	$(MANAGE) makemigrations
+	pipenv run $(MANAGE) makemigrations
 
 shell:
-	$(MANAGE) shell
+	pipenv run $(MANAGE) shell
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -r {} +
@@ -77,7 +78,7 @@ docker-logs:
 
 app.local.seed: 
 	@echo "Seeding database..."
-	@docker exec -it $(DOCKER_COMPOSE_LOCAL_NAME)-backend-1 python manage.py seed_data
+	@docker exec -it $(DOCKER_COMPOSE_LOCAL_NAME)-backend-1 pipenv run python manage.py seed_data
 
 app.local.db.build:
 	@docker compose -f ./docker/app.local.db.yml build --no-cache --force-rm
@@ -89,13 +90,16 @@ app.local.db.down:
 run.local:
 	@echo "Starting the local development environment..."
 	@docker compose -f ./docker/app.local.db.yml up -d
-	@. ./venv/bin/activate && python manage.py runserver
+	@pipenv run python manage.py runserver
 
 run:
-	@. ./venv/bin/activate && python manage.py runserver
+	@pipenv run python manage.py runserver
 
 app.local.test:
-	@./scripts/run_tests.sh   
+	@./scripts/run_tests.sh
+
+update-requirements:
+	@./scripts/update_requirements.sh
 	
 
 
